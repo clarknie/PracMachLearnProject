@@ -1,0 +1,91 @@
+---
+title: "Project_08"
+author: "Cheng Nie"
+date: "December 26, 2015"
+output: html_document
+---
+
+# Load data
+First, I load the data into R and inspect its different dimmensions.
+
+Through exploring the data, we found that there are 6 subjects and the first column X is simiply an index for the number of observations. Moreover, there is a lot of missing values in some columns for both the training and testing data. Therefore, I keep only the columns that are not missing in both training and testing data. In addiction, since the first 7 columns (including the index column X) are not very informative, I delete them too. Some commands are commented out to avoid too much output. 
+
+```{r message=FALSE}
+library(caret)
+setwd("/Users/chengnie/Dropbox/code/R/coursera/08_PracticalMachineLearning/Project/PracMachLearnProject")
+training_raw <- read.csv("./pml-training.csv")
+testing_raw <- read.csv("./pml-testing.csv")
+# str(training_raw)
+# dim(training_raw)
+# str(testing_raw)
+# dim(testing_raw)
+# 6 subjects
+table(training_raw$user_name)
+# X is just an index for observations
+# summary(training_raw$X)
+# table(training_raw$classe)
+table(training_raw$user_name,training_raw$classe)
+# table(testing_raw$user_name)
+# table(testing_raw$classe)
+# column 160 is different for training and testing
+# testing_raw$problem_id
+
+# sum(is.na(training_raw$raw_timestamp_part_1))
+# http://stackoverflow.com/questions/8317231/elegant-way-to-report-missing-values-in-a-data-frame
+# apply(is.na(training_raw), 2, sum)
+# 19216 out of 19622 are missing for some columns, with only 406 observed for 
+# deleting columns with missing values. Another way we can take care of missing value is by imputation
+
+trainCols <- colSums(is.na(training_raw))==0
+testCols <- colSums(is.na(testing_raw))==0
+# sum(trainCols)
+# sum(testCols)
+# names(testCols)
+# names(trainCols)
+# is the same column in the same position? Yes
+# names(testCols) == names(trainCols)
+# sum(names(testCols) == names(trainCols))
+
+# element wise and
+keepCols <- trainCols & testCols 
+# keepCols 
+# sum(keepCols)
+
+# remove the index column and the other "non-informative" columns
+keepCols[1:7] <- FALSE
+```
+
+
+
+# training
+To avoid overfitting, we use 10-fold cross validation according to train our random forest model. 
+
+```{r cache=TRUE}
+
+training1 <- training_raw[,keepCols]
+validation <- testing_raw[,keepCols]
+
+set.seed(124)
+inTrain <- createDataPartition(y=training1$classe, p=0.6, list=FALSE )
+training2 <- training1[inTrain,]
+testing2 <- training1[-inTrain,]
+
+# To avoid overfitting, we use 10-fold cross validation according to this page
+# http://topepo.github.io/caret/training.html
+fitControl <- trainControl(## 10-fold CV
+                           method = "repeatedcv",
+                           number = 10,
+                           ## repeated one time
+                           repeats = 10)
+
+
+fit3 <- train(classe ~ . ,data = training2, method = "rf", ntree = 3, trControl = fitControl, verbose = FALSE)
+
+predictionsTrain <- predict(fit3, newdata=training2)
+confusionMatrix(predictionsTrain,training2$classe)
+
+predictionsTest <- predict(fit3, newdata=testing2)
+confusionMatrix(predictionsTest,testing2$classe)
+```
+
+It shows that the random forest model I trained with 10-fold cross validation is very accurate. Note that we choose to get only 3 trees in the random forest tree training to speed up the training. 
