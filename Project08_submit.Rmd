@@ -80,6 +80,7 @@ fitControl <- trainControl(## 10-fold CV
 
 
 fit3 <- train(classe ~ . ,data = training2, method = "rf", ntree = 3, trControl = fitControl, verbose = FALSE)
+predict(fit3)
 
 predictionsTrain <- predict(fit3, newdata=training2)
 confusionMatrix(predictionsTrain,training2$classe)
